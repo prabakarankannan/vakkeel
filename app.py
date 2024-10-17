@@ -45,6 +45,7 @@ def ingest_data():
         create_vector_store(text_chunks)
         st.write("Data ingestion complete.")
 
+# Define the conversational chain with memory of previous chat history
 def get_conversational_chain():
     prompt_template = """
     You are Lawy, a professional legal advisor specializing in Indian central laws. 
@@ -63,15 +64,24 @@ def get_conversational_chain():
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
+# Function to handle user input and generate a response considering chat history
 def user_input(user_question, chat_history):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     new_db = FAISS.load_local("Faiss", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
+
     chain = get_conversational_chain()
-    response = chain({"input_documents": docs, "chat_history": chat_history, "question": user_question}, return_only_outputs=True)
+
+    # Ensure chat_history is passed as part of the context
+    response = chain({
+        "input_documents": docs, 
+        "chat_history": chat_history,  # Pass chat history here
+        "question": user_question
+    }, return_only_outputs=True)
+    
     return response["output_text"]
 
-# Redesigned hero section with more professional feel
+# Redesigned hero section with a professional feel
 def hero_section():
     st.markdown("""
     <style>
@@ -108,7 +118,7 @@ def hero_section():
     </div>
     """, unsafe_allow_html=True)
 
-# Main function with improved user interaction and design
+# Main function with user interaction and design
 def main():
     st.set_page_config("LawBot - Legal AI Assistant", page_icon=":scales:", layout="wide")
     
@@ -145,10 +155,10 @@ def main():
 
         with st.chat_message("assistant"):
             with st.spinner("Analyzing legal query..."):
-                chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages])
+                # Build chat history string from session state messages
+                chat_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages if msg["role"] == "user"])
                 response = user_input(prompt, chat_history)
                 st.markdown(f"**LawBot:** {response}")
-
 
         # Append assistant's response to the session state
         if response:
